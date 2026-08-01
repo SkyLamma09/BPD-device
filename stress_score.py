@@ -105,3 +105,7 @@ predictions = model.predict(testlist)
 accuracy = accuracy_score(labeltest, predictions)
 print(f"Accuracy: {accuracy}")
 print(classification_report(labeltest, predictions, target_names=['baseline', 'stress']))
+
+#HERE WILL GO THE INPUT OF THE DEVICE
+probabilities = model.predict_proba([window])
+stress_score = probabilities[0][1]  # 1 stress 0 normal
