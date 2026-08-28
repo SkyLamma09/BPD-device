@@ -81,9 +81,11 @@ def thing(night, person):
         elif 1 <= i[0] <= 4:
             i[0] = True
             actualfinal.append(i)
+        else:
+            i[0] = "Remove"
 
     finals = []
-    epoch_amount = []
+    epoch_counts_seq = []
     for i in actualfinal:
         heartr = []
         count = []
@@ -93,35 +95,27 @@ def thing(night, person):
         if len(heartr) == 0:
             continue
         total_count = np.sum(count, axis=0)
-        epochs = total_count.sum()
+        epoch_scalar = total_count.sum()
         finals.append([i[0], np.mean(heartr), total_count])
-        epoch_amount.append(epochs)
+        epoch_counts_seq.append(epoch_scalar)
 
-    windows = [0]*11
-    sadeh = []
-    for i in epoch_amount:
-        sadeh_counts.append(i)
+    sadeh_counts = [0]*11
+    sadeh_predictions = []
+    for c in epoch_counts_seq:
+        sadeh_counts.append(c)
         if len(sadeh_counts) > 11:
             sadeh_counts.pop(0)
 
-        if windows[-1] == 0:
-          LG = 0
-        else:
-           np.log(windows[10])
-        AVG = np.mean(windows)
-        SD = np.std(windows[:-6])
-        counts = 0
-        for x in windows:
-          if 50<= x < 100:
-            counts += 1
-        NATS = counts
-        NATS = sum(1 for x in windows if 50 <= x < 100)
+        LG = 0 if sadeh_counts[-1] == 0 else np.log(sadeh_counts[10])
+        AVG = np.mean(sadeh_counts)
+        SD = np.std(sadeh_counts[:-6])
+        NATS = sum(1 for x in sadeh_counts if 50 <= x < 100)
         raw = (7.601 - (0.065*AVG) - (1.08*NATS) - (0.056*SD) - (0.703*LG))
-        sadeh.append(raw <= -4)
+        sadeh_predictions.append(raw <= -4)
 
     result = []
     for i in range(len(finals)):
-        result.append([finals[i][0], finals[i][1], finals[i][2], sadeh[i]])
+        result.append([finals[i][0], finals[i][1], finals[i][2], sadeh_predictions[i]])
 
     return result
 
@@ -134,10 +128,11 @@ for i in range(48):
         except FileNotFoundError as e:
             break
         except Exception as e:
-            print(f"Subject {i}, night {x}: error — {type(e).__name__}: {e}")
+            print(f"Subject {i}, night {x}: unexpected error — {type(e).__name__}: {e}")
             break
     completed1.append(bob1)
 
+#print(completed1)
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import precision_score, recall_score, accuracy_score, confusion_matrix
 
@@ -149,48 +144,67 @@ for subject_nights in completed1:
     labels = []
     for night in subject_nights:
         for row in night:
-            groundtruth, hr, counts, sadeh_pred = row
-            finall = [hr, counts[0], counts[1], counts[2], int(sadeh_pred)]
-            rows.append(finall)
-            labels.append(int(groundtruth))
+            gt, hr, counts, sadeh_pred = row
+            features = [hr, counts[0], counts[1], counts[2], int(sadeh_pred)]
+            rows.append(features)
+            labels.append(int(gt))
     if len(rows) == 0:
         continue
     subject_X.append(np.array(rows))
     subject_y.append(np.array(labels))
 
-n_subjects = len(subject_X)-30
-print(f"Amount of subjects: {n_subjects}")
+n_subjects = len(subject_X)
+print(f"Usable subjects: {n_subjects}")
 
-precision = []
-recall = []
-accuracy = []
-specificity = []
+precisions, recalls, accuracies, specificities = [], [], [], []
 
-for x in range(n_subjects):
-    X_train = np.vstack([subject_X[i] for i in range(n_subjects) if i != x])
-    y_train = np.concatenate([subject_y[i] for i in range(n_subjects) if i != x])
-    X_test = subject_X[x]
-    y_test = subject_y[x]
+for held_out in range(n_subjects):
+    X_train = np.vstack([subject_X[i] for i in range(n_subjects) if i != held_out])
+    y_train = np.concatenate([subject_y[i] for i in range(n_subjects) if i != held_out])
+    X_test = subject_X[held_out]
+    y_test = subject_y[held_out]
 
     if len(np.unique(y_train)) < 2:
         continue
 
-    forest = RandomForestClassifier(n_estimators=100, class_weight={0:1.0,1:1.0}, random_state=42)
-    forest.fit(X_train, y_train)
-    y_pred = forest.predict(X_test)
+    clf = RandomForestClassifier(n_estimators=100, class_weight={0:8.0,1:1.0}, random_state=42)
+    clf.fit(X_train, y_train)
+    y_pred = clf.predict(X_test)
 
-    precision.append(precision_score(y_test, y_pred, zero_division=0))
-    recall.append(recall_score(y_test, y_pred, zero_division=0))
-    accuracy.append(accuracy_score(y_test, y_pred))
+    precisions.append(precision_score(y_test, y_pred, zero_division=0))
+    recalls.append(recall_score(y_test, y_pred, zero_division=0))
+    accuracies.append(accuracy_score(y_test, y_pred))
 
-    tneg, fpos, fneg, tpos = confusion_matrix(y_test, y_pred, labels=[0, 1]).ravel()
-    if (tneg + fpos) > 0:
-      specificityz = tneg/(tneg + fpos) 
-    else:
-      specificityz = 0
-    specificity.append(specificityz)
+    tn, fp, fn, tp = confusion_matrix(y_test, y_pred, labels=[0, 1]).ravel()
+    specificity = tn / (tn + fp) if (tn + fp) > 0 else 0
+    specificities.append(specificity)
 
-print(f"Avg precision:   {np.mean(precision):.3f}")
-print(f"Avg recall:      {np.mean(recall):.3f}")
-print(f"Avg accuracy:    {np.mean(accuracy):.3f}")
-print(f"Avg specificity: {np.mean(specificity):.3f}")
+print(f"Avg precision:   {np.mean(precisions):.3f}")
+print(f"Avg recall:      {np.mean(recalls):.3f}")
+print(f"Avg accuracy:    {np.mean(accuracies):.3f}")
+print(f"Avg specificity: {np.mean(specificities):.3f}")
+
+n_train = len(subject_X) - 1
+last_subject_idx = n_train
+
+X_train = np.vstack([subject_X[i] for i in range(n_train)])
+y_train = np.concatenate([subject_y[i] for i in range(n_train)])
+
+X_test = subject_X[last_subject_idx]
+y_test = subject_y[last_subject_idx]
+
+clf = RandomForestClassifier(n_estimators=100, class_weight={0: 1.0, 1: 0.5}, random_state=42)
+clf.fit(X_train, y_train)
+y_pred = clf.predict(X_test)
+
+EPOCH_SECONDS = 30
+
+predicted_sleep_epochs = np.sum(y_pred == 1)
+actual_sleep_epochs = np.sum(y_test == 1)
+
+predicted_sleep_minutes = predicted_sleep_epochs * EPOCH_SECONDS / 60
+actual_sleep_minutes = actual_sleep_epochs * EPOCH_SECONDS / 60
+
+print(f"Predicted total sleep time: {predicted_sleep_minutes:.1f} minutes")
+print(f"Actual total sleep time:    {actual_sleep_minutes:.1f} minutes")
+print(f"Difference:                 {predicted_sleep_minutes - actual_sleep_minutes:+.1f} minutes")
