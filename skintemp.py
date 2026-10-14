@@ -10,8 +10,7 @@ baseline = [0, 0]
 
 def deviate(data, idx):
     temp = []
-
-    for i in data[120 * idx:120 * (idx + 1)]:
+    for i in data[120*idx:120*(idx + 1)]:
         temp.append(i)
 
     return np.mean(temp)
