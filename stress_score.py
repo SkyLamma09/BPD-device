@@ -109,3 +109,6 @@ print(classification_report(labeltest, predictions, target_names=['baseline', 's
 #HERE WILL GO THE INPUT OF THE DEVICE
 probabilities = model.predict_proba([window])
 stress_score = probabilities[0][1]  # 1 stress 0 normal
+
+
+#this averages 7 values per minute so you need to do whatever u did her just on 300 values(50hz*60 seconds)
