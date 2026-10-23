@@ -3,6 +3,10 @@ import numpy as np
 from agcounts.extract import get_counts
 from datetime import datetime
 import scipy.io
+import joblib
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import precision_score, recall_score, accuracy_score, confusion_matrix
+from scipy.signal import resample_poly
 
 def thing(night, person):
     with open(rf"C:\Users\yona\Downloads\heartrateandstuff\a-multi-night-instantaneous-heart-rate-and-accelerometry-dataset-with-eeg-sleep-stage-labels-1.0.0\{person}\{night}\motion.csv", mode='r', newline='', encoding='utf-8') as file:
@@ -132,9 +136,7 @@ for i in range(48):
             break
     completed1.append(bob1)
 
-#print(completed1)
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import precision_score, recall_score, accuracy_score, confusion_matrix
+
 
 subject_X = []
 subject_y = []
@@ -153,22 +155,22 @@ for subject_nights in completed1:
     subject_X.append(np.array(rows))
     subject_y.append(np.array(labels))
 
-n_subjects = len(subject_X)
+n_subjects = len(subject_X)-1
 print(f"Usable subjects: {n_subjects}")
 
 precisions, recalls, accuracies, specificities = [], [], [], []
 
 for held_out in range(n_subjects):
-    X_train = np.vstack([subject_X[i] for i in range(n_subjects) if i != held_out])
-    y_train = np.concatenate([subject_y[i] for i in range(n_subjects) if i != held_out])
+    xs = np.vstack([subject_X[i] for i in range(n_subjects) if i != held_out])
+    ys = np.concatenate([subject_y[i] for i in range(n_subjects) if i != held_out])
     X_test = subject_X[held_out]
     y_test = subject_y[held_out]
 
-    if len(np.unique(y_train)) < 2:
+    if len(np.unique(ys)) < 2:
         continue
 
     clf = RandomForestClassifier(n_estimators=100, class_weight={0:8.0,1:1.0}, random_state=42)
-    clf.fit(X_train, y_train)
+    clf.fit(xs, ys)
     y_pred = clf.predict(X_test)
 
     precisions.append(precision_score(y_test, y_pred, zero_division=0))
@@ -187,24 +189,46 @@ print(f"Avg specificity: {np.mean(specificities):.3f}")
 n_train = len(subject_X) - 1
 last_subject_idx = n_train
 
-X_train = np.vstack([subject_X[i] for i in range(n_train)])
-y_train = np.concatenate([subject_y[i] for i in range(n_train)])
+xs = np.vstack([subject_X[i] for i in range(n_train)])
+ys = np.concatenate([subject_y[i] for i in range(n_train)])
 
 X_test = subject_X[last_subject_idx]
 y_test = subject_y[last_subject_idx]
 
 clf = RandomForestClassifier(n_estimators=100, class_weight={0: 1.0, 1: 0.5}, random_state=42)
-clf.fit(X_train, y_train)
-y_pred = clf.predict(X_test)
+clf.fit(xs, ys)
+joblib.dump(clf, "random_forest_model.pkl")
+def sadeh(epoch_amount):
+    sadeh_counts = [0] * 11
+    sadeh = []
+    for i in epoch_amount:
+        sadeh_counts.append(i)
+        if len(sadeh_counts) > 11:
+            sadeh_counts.pop(0)
 
-EPOCH_SECONDS = 30
+        LG = 0 if sadeh_counts[-1] == 0 else np.log(sadeh_counts[10])
+        AVG = np.mean(sadeh_counts)
+        SD = np.std(sadeh_counts[:-6])
+        NATS = sum(1 for x in sadeh_counts if 50 <= x < 100)
 
-predicted_sleep_epochs = np.sum(y_pred == 1)
-actual_sleep_epochs = np.sum(y_test == 1)
+        raw = (7.601 - (0.065 * AVG) - (1.08 * NATS) - (0.056 * SD) - (0.703 * LG))
+        sadeh.append(raw <= -4)
 
-predicted_sleep_minutes = predicted_sleep_epochs * EPOCH_SECONDS / 60
-actual_sleep_minutes = actual_sleep_epochs * EPOCH_SECONDS / 60
+    return sadeh
 
-print(f"Predicted total sleep time: {predicted_sleep_minutes:.1f} minutes")
-print(f"Actual total sleep time:    {actual_sleep_minutes:.1f} minutes")
-print(f"Difference:                 {predicted_sleep_minutes - actual_sleep_minutes:+.1f} minutes")
+def predictions(acc, hrm, epochs):
+    sadeh_preds = sadeh(epochs) # true sleep false awake
+    sadeh_predi = sadeh_preds[-1]  # Latest sleep/wake prediction
+
+    model = joblib.load("random_forest_model.pkl")
+    hrm = np.asarray(hrm, dtype=float).flatten()
+    acc = resample_poly(np.asarray(acc,dtype=float), up=1, down=2, axis=0)
+
+    counting = get_counts(acc, freq=50, epoch=1)
+    counts = counting.sum(axis=0)
+
+
+    features1 = [[np.mean(hrm), counts[0], counts[1], counts[2], int(sadeh_predi)]]
+
+    verdict = model.predict(features1)
+    return verdict
