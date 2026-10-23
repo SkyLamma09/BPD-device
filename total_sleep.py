@@ -5,7 +5,6 @@ from datetime import datetime
 import scipy.io
 import joblib
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import precision_score, recall_score, accuracy_score, confusion_matrix
 from scipy.signal import resample_poly
 
 def thing(night, person):
@@ -116,31 +115,23 @@ def thing(night, person):
         NATS = sum(1 for x in sadeh_counts if 50 <= x < 100)
         raw = (7.601 - (0.065*AVG) - (1.08*NATS) - (0.056*SD) - (0.703*LG))
         sadeh_predictions.append(raw <= -4)
-
     result = []
     for i in range(len(finals)):
         result.append([finals[i][0], finals[i][1], finals[i][2], sadeh_predictions[i]])
-
     return result
 
 completed1 = []
-for i in range(48):
+for i in range(46):
     bob1 = []
     for x in range(1, 8):
         try:
             bob1.append(thing(x, i))
-        except FileNotFoundError as e:
-            break
         except Exception as e:
-            print(f"Subject {i}, night {x}: unexpected error — {type(e).__name__}: {e}")
             break
     completed1.append(bob1)
 
-
-
 subject_X = []
-subject_y = []
-
+gtruth = []
 for subject_nights in completed1:
     rows = []
     labels = []
@@ -153,51 +144,15 @@ for subject_nights in completed1:
     if len(rows) == 0:
         continue
     subject_X.append(np.array(rows))
-    subject_y.append(np.array(labels))
+    gtruth.append(np.array(labels))
 
-n_subjects = len(subject_X)-1
-print(f"Usable subjects: {n_subjects}")
-
-precisions, recalls, accuracies, specificities = [], [], [], []
-
-for held_out in range(n_subjects):
-    xs = np.vstack([subject_X[i] for i in range(n_subjects) if i != held_out])
-    ys = np.concatenate([subject_y[i] for i in range(n_subjects) if i != held_out])
-    X_test = subject_X[held_out]
-    y_test = subject_y[held_out]
-
-    if len(np.unique(ys)) < 2:
-        continue
-
-    clf = RandomForestClassifier(n_estimators=100, class_weight={0:8.0,1:1.0}, random_state=42)
-    clf.fit(xs, ys)
-    y_pred = clf.predict(X_test)
-
-    precisions.append(precision_score(y_test, y_pred, zero_division=0))
-    recalls.append(recall_score(y_test, y_pred, zero_division=0))
-    accuracies.append(accuracy_score(y_test, y_pred))
-
-    tn, fp, fn, tp = confusion_matrix(y_test, y_pred, labels=[0, 1]).ravel()
-    specificity = tn / (tn + fp) if (tn + fp) > 0 else 0
-    specificities.append(specificity)
-
-print(f"Avg precision:   {np.mean(precisions):.3f}")
-print(f"Avg recall:      {np.mean(recalls):.3f}")
-print(f"Avg accuracy:    {np.mean(accuracies):.3f}")
-print(f"Avg specificity: {np.mean(specificities):.3f}")
-
-n_train = len(subject_X) - 1
-last_subject_idx = n_train
-
-xs = np.vstack([subject_X[i] for i in range(n_train)])
-ys = np.concatenate([subject_y[i] for i in range(n_train)])
-
-X_test = subject_X[last_subject_idx]
-y_test = subject_y[last_subject_idx]
+X_train = np.vstack(subject_X)
+truths = np.concatenate(gtruth)
 
 clf = RandomForestClassifier(n_estimators=100, class_weight={0: 1.0, 1: 0.5}, random_state=42)
-clf.fit(xs, ys)
-joblib.dump(clf, "random_forest_model.pkl")
+clf.fit(X_train, y_train)
+joblib.dump(clf, "SleepModel.pkl")
+
 def sadeh(epoch_amount):
     sadeh_counts = [0] * 11
     sadeh = []
@@ -210,17 +165,15 @@ def sadeh(epoch_amount):
         AVG = np.mean(sadeh_counts)
         SD = np.std(sadeh_counts[:-6])
         NATS = sum(1 for x in sadeh_counts if 50 <= x < 100)
-
         raw = (7.601 - (0.065 * AVG) - (1.08 * NATS) - (0.056 * SD) - (0.703 * LG))
         sadeh.append(raw <= -4)
-
     return sadeh
 
 def predictions(acc, hrm, epochs):
     sadeh_preds = sadeh(epochs) # true sleep false awake
-    sadeh_predi = sadeh_preds[-1]  # Latest sleep/wake prediction
+    sadeh_predi = sadeh_preds[-1]
 
-    model = joblib.load("random_forest_model.pkl")
+    model = joblib.load("SleepModel.pkl")
     hrm = np.asarray(hrm, dtype=float).flatten()
     acc = resample_poly(np.asarray(acc,dtype=float), up=1, down=2, axis=0)
 
@@ -232,3 +185,4 @@ def predictions(acc, hrm, epochs):
 
     verdict = model.predict(features1)
     return verdict
+
