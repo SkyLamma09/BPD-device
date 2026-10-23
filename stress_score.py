@@ -1,10 +1,13 @@
-#This is the first model that will output to the fusion network a stress score based off of movement, heart rate, electrodermal activity, and skin temperature
-
 import pickle
 import numpy as np
 import statistics
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
+import joblib
+from scipy.signal import resample
+
+
+
 complete_data = []
 def dataload(files):
   secs = 60
@@ -106,9 +109,18 @@ accuracy = accuracy_score(labeltest, predictions)
 print(f"Accuracy: {accuracy}")
 print(classification_report(labeltest, predictions, target_names=['baseline', 'stress']))
 
-#HERE WILL GO THE INPUT OF THE DEVICE
-probabilities = model.predict_proba([window])
-stress_score = probabilities[0][1]  # 1 stress 0 normal
+joblib.dump(model, "stress_model.pkl")
+model = joblib.load("stress_model.pkl")
 
+def stress_score(ACC, BVP, EDA, TEMP):
+    ACC = resample(ACC, 1920, axis=0)
+    BVP = resample(BVP, 3840)
+    EDA = resample(EDA, 240)
+    TEMP = resample(TEMP, 240)
+    magnitude = np.sqrt(np.sum(ACC**2, axis=1))
+    features = [[np.std(EDA), np.mean(EDA), np.mean(BVP), np.std(BVP), np.mean(TEMP), np.mean(magnitude), np.std(magnitude)]]
 
-#this averages 7 values per minute so you need to do whatever u did her just on 300 values(50hz*60 seconds)
+    classes = list(model.classes_)
+    stress = classes.index(2)
+
+    return model.predict_proba(features)[0][stress]
