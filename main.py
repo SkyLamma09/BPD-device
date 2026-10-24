@@ -104,7 +104,7 @@ for days in week:
         lightv.append(lvariance)
         stdtemp.append(skintemp(np.asarray(temp))[1])
         stress.append(stress_score([acc, bvp, eda, temp]))
-        acc1, acc2 = acc[:mid], acc[mid:]
+        acc1, acc2 = acc[:len(acc)//2], acc[len(acc)//2:]
         bvp1, bvp2 = bvp[:len(bvp) // 2], bvp[len(bvp) // 2:]
 
         pred1 = predictions(acc1, bvp1, previousactivity)
