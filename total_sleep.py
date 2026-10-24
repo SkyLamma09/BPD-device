@@ -115,9 +115,11 @@ def thing(night, person):
         NATS = sum(1 for x in sadeh_counts if 50 <= x < 100)
         raw = (7.601 - (0.065*AVG) - (1.08*NATS) - (0.056*SD) - (0.703*LG))
         sadeh_predictions.append(raw <= -4)
+
     result = []
     for i in range(len(finals)):
         result.append([finals[i][0], finals[i][1], finals[i][2], sadeh_predictions[i]])
+
     return result
 
 completed1 = []
@@ -126,12 +128,18 @@ for i in range(46):
     for x in range(1, 8):
         try:
             bob1.append(thing(x, i))
+        except FileNotFoundError as e:
+            break
         except Exception as e:
+            print(f"Subject {i}, night {x}: unexpected error — {type(e).__name__}: {e}")
             break
     completed1.append(bob1)
 
+
+
 subject_X = []
-gtruth = []
+subject_y = []
+
 for subject_nights in completed1:
     rows = []
     labels = []
@@ -144,14 +152,27 @@ for subject_nights in completed1:
     if len(rows) == 0:
         continue
     subject_X.append(np.array(rows))
-    gtruth.append(np.array(labels))
+    subject_y.append(np.array(labels))
 
-X_train = np.vstack(subject_X)
-truths = np.concatenate(gtruth)
+X_train = np.vstack(subject_X).astype(float)
+y_train = np.concatenate(subject_y).astype(int)
 
-clf = RandomForestClassifier(n_estimators=100, class_weight={0: 1.0, 1: 0.5}, random_state=42)
+if len(np.unique(y_train)) < 2:
+    raise ValueError("The selected subject must contain both classes.")
+
+clf = RandomForestClassifier(
+    n_estimators=100,
+    class_weight={0: 1.0, 1: 0.5},
+    random_state=42
+)
+
 clf.fit(X_train, y_train)
-joblib.dump(clf, "SleepModel.pkl")
+
+joblib.dump(clf, "random_forest_model.pkl")
+
+#print(f"Trained on subject index: {train_subject_idx}")
+#print(f"Training samples: {len(y_train)}")
+#print("Training accuracy:", accuracy_score(y_train, clf.predict(X_train)))
 
 def sadeh(epoch_amount):
     sadeh_counts = [0] * 11
@@ -165,15 +186,17 @@ def sadeh(epoch_amount):
         AVG = np.mean(sadeh_counts)
         SD = np.std(sadeh_counts[:-6])
         NATS = sum(1 for x in sadeh_counts if 50 <= x < 100)
+
         raw = (7.601 - (0.065 * AVG) - (1.08 * NATS) - (0.056 * SD) - (0.703 * LG))
         sadeh.append(raw <= -4)
+
     return sadeh
 
 def predictions(acc, hrm, epochs):
     sadeh_preds = sadeh(epochs) # true sleep false awake
-    sadeh_predi = sadeh_preds[-1]
+    sadeh_predi = sadeh_preds[-1]  # Latest sleep/wake prediction
 
-    model = joblib.load("SleepModel.pkl")
+    model = joblib.load("random_forest_model.pkl")
     hrm = np.asarray(hrm, dtype=float).flatten()
     acc = resample_poly(np.asarray(acc,dtype=float), up=1, down=2, axis=0)
 
@@ -186,3 +209,9 @@ def predictions(acc, hrm, epochs):
     verdict = model.predict(features1)
     return verdict
 
+
+def activity_counts(acc):
+    acc = np.asarray(acc, dtype=float)
+    downsample = resample_poly(acc, up=1, down=2, axis=0)
+    counts = get_counts(downsample, freq=50, epoch=1)
+    return counts.sum()
