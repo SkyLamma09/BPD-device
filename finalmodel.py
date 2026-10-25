@@ -1,0 +1,67 @@
+#taking in stress score, total sleep in day, interdaily stability, intradaily variability, relative amplitude of circ rhythm
+# skin temperature deviation, patient mood report, duration of too high light exposure during sleeping time(11-7), maximum lux, variance
+
+
+
+import torch.nn as nn
+import torch.nn.functional as func
+
+
+from synthetic_data import synthetic_data
+import torch
+
+
+class TCN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.resfunction1 = nn.Conv1d(12, 16, kernel_size=1)
+        self.resfunction2 = nn.Conv1d(16, 32, kernel_size=1)
+        self.resfunction3 = nn.Conv1d(32, 64, kernel_size=1)
+        self.resfunction4 = nn.Conv1d(64, 64, kernel_size=1)
+        
+        self.conv1 = nn.Conv1d(12, 16, kernel_size=3, dilation=1)
+        self.conv2 = nn.Conv1d(16, 32, kernel_size=3, dilation=4)
+        self.conv3 = nn.Conv1d(32, 64, kernel_size=3, dilation=8)
+        self.conv4 = nn.Conv1d(64, 64, kernel_size=3, dilation=16)
+        
+        self.line = nn.Linear(64, 64)
+        self.line2 = nn.Linear(64, 32)
+        self.line3 = nn.Linear(32, 3)
+
+    def forward(self, inputs):
+        featmap1 = torch.relu(self.conv1(func.pad(inputs, (2, 0))) + self.resfunction1(inputs))
+        featmap2 = torch.relu(self.conv2(func.pad(featmap1, (8, 0))) +  self.resfunction2(featmap1))
+        featmap3 = torch.relu(self.conv3(func.pad(featmap2, (16, 0))) + self.resfunction3(featmap2))
+        featmap4 = torch.relu(self.conv4(func.pad(featmap3, (32, 0))) + self.resfunction4(featmap3))
+
+        pooled = func.adaptive_avg_pool1d(featmap4, 1)
+        flattened = torch.flatten(pooled, start_dim=1)
+
+        lined = torch.relu(self.line(flattened))
+        lined2 = torch.relu(self.line2(lined))
+
+        return self.line3(lined2)
+if __name__ == "__main__":
+
+    X, y = synthetic_data(n=100)
+
+    X = torch.as_tensor(X, dtype=torch.float32)
+    y = torch.as_tensor(y, dtype=torch.long).squeeze(1)
+    print("X shape:", X.shape)
+    print("y shape:", y.shape)
+
+    model = TCN()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    criterion = torch.nn.CrossEntropyLoss()
+    model.train()
+
+    for epoch in range(20):
+        optimizer.zero_grad()
+
+        logits = model(X)
+        loss = criterion(logits, y)
+
+        loss.backward()
+        optimizer.step()
+        print(f"Epoch {epoch + 1}, Loss: {loss.item():.4f}")
+    torch.save(model.state_dict(), "tcn.pth")
