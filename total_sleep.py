@@ -121,54 +121,55 @@ def thing(night, person):
         result.append([finals[i][0], finals[i][1], finals[i][2], sadeh_predictions[i]])
 
     return result
+if __name__ == "__main__":
 
-completed1 = []
-for i in range(46):
-    bob1 = []
-    for x in range(1, 8):
-        try:
-            bob1.append(thing(x, i))
-        except FileNotFoundError as e:
-            break
-        except Exception as e:
-            print(f"Subject {i}, night {x}: unexpected error — {type(e).__name__}: {e}")
-            break
-    completed1.append(bob1)
+    completed1 = []
+    for i in range(46):
+        bob1 = []
+        for x in range(1, 8):
+            try:
+                bob1.append(thing(x, i))
+            except FileNotFoundError as e:
+                break
+            except Exception as e:
+                print(f"Subject {i}, night {x}: unexpected error — {type(e).__name__}: {e}")
+                break
+        completed1.append(bob1)
 
 
 
-subject_X = []
-subject_y = []
+    subject_X = []
+    subject_y = []
 
-for subject_nights in completed1:
-    rows = []
-    labels = []
-    for night in subject_nights:
-        for row in night:
-            gt, hr, counts, sadeh_pred = row
-            features = [hr, counts[0], counts[1], counts[2], int(sadeh_pred)]
-            rows.append(features)
-            labels.append(int(gt))
-    if len(rows) == 0:
-        continue
-    subject_X.append(np.array(rows))
-    subject_y.append(np.array(labels))
+    for subject_nights in completed1:
+        rows = []
+        labels = []
+        for night in subject_nights:
+            for row in night:
+                gt, hr, counts, sadeh_pred = row
+                features = [hr, counts[0], counts[1], counts[2], int(sadeh_pred)]
+                rows.append(features)
+                labels.append(int(gt))
+        if len(rows) == 0:
+            continue
+        subject_X.append(np.array(rows))
+        subject_y.append(np.array(labels))
 
-X_train = np.vstack(subject_X).astype(float)
-y_train = np.concatenate(subject_y).astype(int)
+    X_train = np.vstack(subject_X).astype(float)
+    y_train = np.concatenate(subject_y).astype(int)
 
-if len(np.unique(y_train)) < 2:
-    raise ValueError("The selected subject must contain both classes.")
+    if len(np.unique(y_train)) < 2:
+        raise ValueError("The selected subject must contain both classes.")
 
-clf = RandomForestClassifier(
-    n_estimators=100,
-    class_weight={0: 1.0, 1: 0.5},
-    random_state=42
-)
+    clf = RandomForestClassifier(
+        n_estimators=100,
+        class_weight={0: 1.0, 1: 0.5},
+        random_state=42
+    )
 
-clf.fit(X_train, y_train)
+    clf.fit(X_train, y_train)
 
-joblib.dump(clf, "random_forest_model.pkl")
+    joblib.dump(clf, "random_forest_model.pkl")
 
 #print(f"Trained on subject index: {train_subject_idx}")
 #print(f"Training samples: {len(y_train)}")
@@ -191,12 +192,12 @@ def sadeh(epoch_amount):
         sadeh.append(raw <= -4)
 
     return sadeh
+models = joblib.load("random_forest_model.pkl")
 
 def predictions(acc, hrm, epochs):
     sadeh_preds = sadeh(epochs) # true sleep false awake
     sadeh_predi = sadeh_preds[-1]  # Latest sleep/wake prediction
 
-    model = joblib.load("random_forest_model.pkl")
     hrm = np.asarray(hrm, dtype=float).flatten()
     acc = resample_poly(np.asarray(acc,dtype=float), up=1, down=2, axis=0)
 
@@ -206,9 +207,8 @@ def predictions(acc, hrm, epochs):
 
     features1 = [[np.mean(hrm), counts[0], counts[1], counts[2], int(sadeh_predi)]]
 
-    verdict = model.predict(features1)
-    return verdict
-
+    verdict = models.predict(features1)
+    return int(verdict[0])
 
 def activity_counts(acc):
     acc = np.asarray(acc, dtype=float)
