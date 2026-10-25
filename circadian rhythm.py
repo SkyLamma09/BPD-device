@@ -13,6 +13,11 @@ def interstab(datapw):
   imean = [x for i in datapw for x in i]
   gmean = np.mean([x for i in datapw for x in i])
   print(gmean) # mean of all datapoints
+  print("Unique values in imean:", np.unique(imean))
+  print("Number of values:", len(imean))
+  print("Global mean:", gmean)
+  if (24 * sum((imean[x] - gmean) ** 2 for x in range(n))) == 0:
+    return np.nan
   return (n * sum((hmeans[i]-gmean) ** 2 for i in range(24))) / (24*sum((imean[x]-gmean)**2 for x in range(n)))
 
 
