@@ -5,8 +5,8 @@ from datetime import datetime
 import scipy.io
 import joblib
 from sklearn.ensemble import RandomForestClassifier
-from scipy.signal import resample_poly
 from pathlib import Path
+from scipy.signal import resample_poly, find_peaks
 def thing(night, person):
     with open(rf"C:\Users\yona\Downloads\heartrateandstuff\a-multi-night-instantaneous-heart-rate-and-accelerometry-dataset-with-eeg-sleep-stage-labels-1.0.0\{person}\{night}\motion.csv", mode='r', newline='', encoding='utf-8') as file:
         reader = csv.reader(file)
@@ -124,20 +124,14 @@ def thing(night, person):
 if __name__ == "__main__":
 
     completed1 = []
-    for i in range(46):
-        bob1 = []
+    for i in range(1):
+        subject_nights = []
         for x in range(1, 8):
             try:
-                bob1.append(thing(x, i))
-            except FileNotFoundError as e:
-                break
+                subject_nights.append(thing(x, i))
             except Exception as e:
-                print(f"Subject {i}, night {x}: unexpected error — {type(e).__name__}: {e}")
                 break
-        completed1.append(bob1)
-
-
-
+        completed1.append(subject_nights)
     subject_X = []
     subject_y = []
 
@@ -158,22 +152,17 @@ if __name__ == "__main__":
     X_train = np.vstack(subject_X).astype(float)
     y_train = np.concatenate(subject_y).astype(int)
 
-    if len(np.unique(y_train)) < 2:
-        raise ValueError("The selected subject must contain both classes.")
 
-    clf = RandomForestClassifier(
+
+    classifier = RandomForestClassifier(
         n_estimators=100,
-        class_weight={0: 1.0, 1: 0.5},
-        random_state=42
-    )
+        class_weight="balanced",
+        random_state=42)
 
-    clf.fit(X_train, y_train)
+    classifier.fit(X_train, y_train)
 
-    joblib.dump(clf, "random_forest_model.pkl")
+    joblib.dump(classifier, "random_forest_model.pkl")
 
-#print(f"Trained on subject index: {train_subject_idx}")
-#print(f"Training samples: {len(y_train)}")
-#print("Training accuracy:", accuracy_score(y_train, clf.predict(X_train)))
 
 def sadeh(epoch_amount):
     sadeh_counts = [0] * 11
@@ -193,20 +182,21 @@ def sadeh(epoch_amount):
 
     return sadeh
 models = joblib.load(Path(__file__).resolve().parent / "model" / "random_forest_model.pkl")
-
+def bpm_from_bvp(bvp):
+    bvp = np.asarray(bvp, dtype=float).flatten()
+    fs = len(bvp) / 30
+    peaks, _ = find_peaks(bvp, distance=int(fs * 0.4))
+    return len(peaks) * 2
 def predictions(acc, hrm, epochs):
     sadeh_preds = sadeh(epochs) # true sleep false awake
     sadeh_predi = sadeh_preds[-1]
 
-    hrm = np.asarray(hrm, dtype=float).flatten()
     acc = resample_poly(np.asarray(acc,dtype=float), up=1, down=2, axis=0)
 
     counting = get_counts(acc, freq=50, epoch=1)
     counts = counting.sum(axis=0)
 
-
-    features1 = [[np.mean(hrm), counts[0], counts[1], counts[2], int(sadeh_predi)]]
-
+    features1 = [[bpm_from_bvp(hrm), counts[0], counts[1], counts[2], int(sadeh_predi)]]
     verdict = models.predict(features1)
     return int(verdict[0])
 
