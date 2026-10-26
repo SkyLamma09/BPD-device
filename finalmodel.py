@@ -9,6 +9,8 @@ import torch.nn.functional as func
 
 from synthetic_data import synthetic_data
 import torch
+from synthetic_data import load_training_data
+from pathlib import Path
 
 
 class TCN(nn.Module):
@@ -41,13 +43,11 @@ class TCN(nn.Module):
         lined2 = torch.relu(self.line2(lined))
 
         return self.line3(lined2)
-if __name__ == "__main__":
-
-    X, y = synthetic_data(n=100)
-
-    X = torch.as_tensor(X, dtype=torch.float32)
-    y = torch.as_tensor(y, dtype=torch.long).squeeze(1)
-    print("X shape:", X.shape)
+def trainer():
+    x, y = load_training_data()
+    x = torch.as_tensor(x, dtype=torch.float32)
+    y = torch.as_tensor(y, dtype=torch.long).reshape(-1)
+    print("X shape:", x.shape)
     print("y shape:", y.shape)
 
     model = TCN()
@@ -58,10 +58,14 @@ if __name__ == "__main__":
     for epoch in range(20):
         optimizer.zero_grad()
 
-        logits = model(X)
+        logits = model(x)
         loss = criterion(logits, y)
 
         loss.backward()
         optimizer.step()
         print(f"Epoch {epoch + 1}, Loss: {loss.item():.4f}")
-    torch.save(model.state_dict(), "tcn.pth")
+    model_path = Path(__file__).resolve().parent / "model" / "tcn.pth"
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(model.state_dict(), model_path)
+if __name__ == "__main__":
+    trainer()
