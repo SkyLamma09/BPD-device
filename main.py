@@ -1,69 +1,28 @@
 from datetime import datetime
 current_time = str(datetime.now().time())[:5]
 import numpy as np
-from totalsleep import predictions, activity_counts
+from total_sleep import predictions, activity_counts
 from skintemp import skintemp
 import torch
-import sounddevice as sd
-from circ import intravar, interstab, relatamp
-from ambient import lights
-from stressscore import stress_score
-from finalmodel import TCN
+from circadianrhythm import intravar, interstab, relatamp
+from ambientlight import lights
+from stress_score import stress_score
+from finalmodel import TCN, trainer
 import numpy as np
+from pathlib import Path
+import json
+from synthetic_data import make_week
 def finalpredict():
-    def make_week(seed=42):
-        rng = np.random.default_rng(seed)
-        week = []
 
-        for day_num in range(1):
-            minutes = []
-
-            for minute in range(1440):
-                hour = minute // 60
-
-                # Example sensor data for testing only
-                bvp = rng.normal(0, 1, 6000).astype(np.float32)
-                acc = rng.normal(0, 1, (6000, 3)).astype(np.float32)
-
-                eda_raw = rng.normal(0.5, 0.1, 600).astype(np.float32)
-                eda = np.repeat(eda_raw, 10)
-
-                temp_raw = rng.normal(32, 0.2, 1200).astype(np.float32)
-                temp = np.repeat(temp_raw, 5)
-
-                # BH1750: ambient light, one measurement per hour
-                # Approximate the current hour's light level for this test minute.
-                hour = minute // 60
-                light_level = 3 if hour < 7 or hour >= 22 else 200
-                light = np.array([max(0, rng.normal(light_level, 10))])
-
-                minutes.append([acc, bvp, eda, temp, light])
-
-            # Replace this example mood value with your actual daily mood label
-            mood = 0
-
-            week.append([minutes, mood])
-
-        return week
 
 
     week = make_week()
 
-    print("Days:", len(week))
-    print("Minutes in first day:", len(week[0][0]))
-    print("Sensor arrays for first minute:", [x.shape for x in week[0][0][0]])
-    print("Mood for first day:", week[0][1])
+
     def chunk_average(values):
         return [np.mean(values[i:i + 30]) for i in range(0, len(values), 30)]
     def chunk_max(values):
         return [max(values[i:i + 30]) for i in range(0, len(values), 30)]
-    def encode_time(time_str):
-        hour, minute = map(int, time_str.split(":"))
-
-        minutes = hour * 60 + minute
-        angle = 2 * np.pi * minutes / 1440
-
-        return np.sin(angle), np.cos(angle)
     minutes = np.arange(336) * 30 + 15
     angles = 2 * np.pi * (minutes % 1440) / 1440
     sin_time = np.sin(angles)
@@ -83,10 +42,10 @@ def finalpredict():
     weeklightv = []
     weekstdtemp = []
     weekstress = []
-    weekrelamp = []
+    #weekrelamp = []
     weeksleep = []
     weekmood = []
-    all_stress = []
+    #all_stress = []
     for days in week:
         weekmood.append(days[1])
 
@@ -164,11 +123,14 @@ def finalpredict():
 
     X_real = torch.tensor(X_real, dtype=torch.float32).unsqueeze(0)
 
-    # Expected shape: (1, 10, 336)
     model = TCN()
+
+    model_path = Path(__file__).resolve().parent / "models" / "tcn.pth"
+
     model.load_state_dict(
-        torch.load("tcn.pth", map_location="cpu", weights_only=True)
+        torch.load(model_path, map_location="cpu", weights_only=True)
     )
+
     model.eval()
 
     with torch.no_grad():
@@ -179,17 +141,43 @@ def finalpredict():
     predicted_class = int(torch.argmax(probabilities).item())
 
     classes = ["mania", "euthymia", "depression"]
-
     return {
         "predicted_class": classes[predicted_class],
         "class_index": predicted_class,
         "probabilities": {
             classes[i]: float(probabilities[i].item())
             for i in range(3)
+        },
+        "graphs": {
+            "stress": [float(x) for x in stresss],
+            "sleep": [float(x) for x in fsleepweek],
+            "skin_temperature": [float(x) for x in weekstdtemp],
+            "mood": [float(x) for x in weekmood],
+            "light_exposure": [float(x) for x in weekhighlight],
+            "ambient_light": [float(x) for x in weekmalux],
+            "light_variability": [float(x) for x in weeklightv],
+            "intradaily_variability": [float(x) for x in intradailys],
+            "interdaily_stability": [float(x) for x in interdailys],
+            "relative_amplitude": [float(x) for x in relamps],
+            "time_sin": [float(x) for x in sin_time],
+            "time_cos": [float(x) for x in cos_time]
         }
     }
 
 
 if __name__ == "__main__":
     result = finalpredict()
+    output_path = (
+            Path(__file__).resolve().parent
+            / "public"
+            / "prediction_results.json"
+    )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(output_path, "w") as f:
+        json.dump(result, f, indent=2)
+
     print("Prediction:", result)
+    print("Results saved to:", output_path)
+    trainer()
