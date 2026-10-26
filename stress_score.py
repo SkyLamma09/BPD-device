@@ -5,7 +5,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
 import joblib
 from scipy.signal import resample
-
+from pathlib import Path
 if __name__ == "__main__":
 
     complete_data = []
@@ -109,10 +109,14 @@ if __name__ == "__main__":
     print(f"Accuracy: {accuracy}")
     print(classification_report(labeltest, predictions, target_names=['baseline', 'stress']))
 
-    joblib.dump(model, "stress_model.pkl")
-
+    model_path = Path(__file__).resolve().parent /"stress_model.pkl"
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, model_path)
 def stress_score(ACC, BVP, EDA, TEMP):
-    model = joblib.load("stress_model.pkl")
+    model_path = Path(__file__).resolve().parent /"stress_model.pkl"
+
+    model = joblib.load(model_path)
+    print("Model classes:", model.classes_)  # TEMPORARY DEBUG LINE
 
     ACC = resample(ACC, 1920, axis=0)
     BVP = resample(BVP, 3840)
@@ -122,6 +126,11 @@ def stress_score(ACC, BVP, EDA, TEMP):
     features = [[np.std(EDA), np.mean(EDA), np.mean(BVP), np.std(BVP), np.mean(TEMP), np.mean(magnitude), np.std(magnitude)]]
 
     classes = list(model.classes_)
-    stress_index = classes.index(2)
+
+    # Class 1 is assumed to represent stress; verify this against your labels.
+    if 1 not in classes:
+        raise ValueError(f"Stress class 1 is missing from model classes: {classes}")
+
+    stress_index = classes.index(1)
 
     return model.predict_proba(features)[0][stress_index]
