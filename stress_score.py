@@ -112,10 +112,12 @@ if __name__ == "__main__":
     model_path = Path(__file__).resolve().parent /"stress_model.pkl"
     model_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, model_path)
-def stress_score(ACC, BVP, EDA, TEMP):
-    model_path = Path(__file__).resolve().parent /"stress_model.pkl"
+model_path = Path(__file__).resolve().parent /"stress_model.pkl"
+model = joblib.load(model_path)
 
-    model = joblib.load(model_path)
+
+def stress_score(ACC, BVP, EDA, TEMP):
+
     print("Model classes:", model.classes_)  # TEMPORARY DEBUG LINE
 
     ACC = resample(ACC, 1920, axis=0)
