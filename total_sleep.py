@@ -6,7 +6,7 @@ import scipy.io
 import joblib
 from sklearn.ensemble import RandomForestClassifier
 from scipy.signal import resample_poly
-
+from pathlib import Path
 def thing(night, person):
     with open(rf"C:\Users\yona\Downloads\heartrateandstuff\a-multi-night-instantaneous-heart-rate-and-accelerometry-dataset-with-eeg-sleep-stage-labels-1.0.0\{person}\{night}\motion.csv", mode='r', newline='', encoding='utf-8') as file:
         reader = csv.reader(file)
@@ -192,7 +192,7 @@ def sadeh(epoch_amount):
         sadeh.append(raw <= -4)
 
     return sadeh
-models = joblib.load("random_forest_model.pkl")
+models = joblib.load(Path(__file__).resolve().parent / "model" / "random_forest_model.pkl")
 
 def predictions(acc, hrm, epochs):
     sadeh_preds = sadeh(epochs) # true sleep false awake
