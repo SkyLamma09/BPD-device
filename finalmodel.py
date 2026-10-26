@@ -38,8 +38,7 @@ def trainer():
     x, y = load_training_data()
     x = torch.as_tensor(x, dtype=torch.float32)
     y = torch.as_tensor(y, dtype=torch.long).reshape(-1)
-    print("X shape:", x.shape)
-    print("y shape:", y.shape)
+
 
     model = TCN()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
