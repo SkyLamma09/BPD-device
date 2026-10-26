@@ -125,7 +125,7 @@ def finalpredict():
 
     model = TCN()
 
-    model_path = Path(__file__).resolve().parent / "models" / "tcn.pth"
+    model_path = Path(__file__).resolve().parent / "model" / "tcn.pth"
 
     model.load_state_dict(
         torch.load(model_path, map_location="cpu", weights_only=True)
@@ -166,18 +166,19 @@ def finalpredict():
 
 
 if __name__ == "__main__":
+    trainer()
     result = finalpredict()
-    output_path = (
-            Path(__file__).resolve().parent
-            / "public"
-            / "prediction_results.json"
-    )
 
+    output_path = (
+        Path(__file__).resolve().parent
+        / "public"
+        / "prediction_results.json"
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, "w") as f:
         json.dump(result, f, indent=2)
 
-    print("Prediction:", result)
+    print("Predicted mood state:", result["predicted_class"])
+    print("Probabilities:", result["probabilities"])
     print("Results saved to:", output_path)
-    trainer()
