@@ -21,10 +21,10 @@ if __name__ == "__main__":
       with open(rf"C:\Users\yona\Downloads\{str(files)}", 'rb') as f:
           data = pickle.load(f, encoding='latin1')
       nums = min(
-          len(data["signal"]["wrist"]["ACC"]) // sizeacc,
-          len(data["signal"]["wrist"]["BVP"]) // sizebvp,
-          len(data["signal"]["wrist"]["EDA"]) // sizeeda,
-          len(data["signal"]["wrist"]["TEMP"]) // sizetemp,
+          len(data["signal"]["wrist"]["ACC"]) // sizeacc, #Accelerometer data
+          len(data["signal"]["wrist"]["BVP"]) // sizebvp, #Blood volume pulse data
+          len(data["signal"]["wrist"]["EDA"]) // sizeeda, #Electrodermal activity data
+          len(data["signal"]["wrist"]["TEMP"]) // sizetemp,#Skin temperature data
           len(data["label"]) // sizelabel)
       ACC = data["signal"]["wrist"]["ACC"][:sizeacc*nums]
       BVP = data["signal"]["wrist"]["BVP"][:sizebvp*nums]
@@ -99,15 +99,13 @@ if __name__ == "__main__":
           inputlist.append(x[:7])
           labellist.append(x[7])
 
-    #splits results into training set and training groundtruths and test set and test groundtruth
     model = RandomForestClassifier(n_estimators=100, max_depth=15, random_state=42)
     model.fit(inputlist, labellist)
 
     predictions = model.predict(testlist)
 
     accuracy = accuracy_score(labeltest, predictions)
-    print(f"Accuracy: {accuracy}")
-    print(classification_report(labeltest, predictions, target_names=['baseline', 'stress']))
+    print(f"It is: {accuracy}% accurate")
 
     model_path = Path(__file__).resolve().parent /"stress_model.pkl"
     model_path.parent.mkdir(parents=True, exist_ok=True)
@@ -118,8 +116,6 @@ model = joblib.load(model_path)
 
 def stress_score(ACC, BVP, EDA, TEMP):
 
-    print("Model classes:", model.classes_)  # TEMPORARY DEBUG LINE
-
     ACC = resample(ACC, 1920, axis=0)
     BVP = resample(BVP, 3840)
     EDA = resample(EDA, 240)
@@ -128,11 +124,5 @@ def stress_score(ACC, BVP, EDA, TEMP):
     features = [[np.std(EDA), np.mean(EDA), np.mean(BVP), np.std(BVP), np.mean(TEMP), np.mean(magnitude), np.std(magnitude)]]
 
     classes = list(model.classes_)
-
-    # Class 1 is assumed to represent stress; verify this against your labels.
-    if 1 not in classes:
-        raise ValueError(f"Stress class 1 is missing from model classes: {classes}")
-
-    stress_index = classes.index(1)
-
+    stress_index = classes.index(2)
     return model.predict_proba(features)[0][stress_index]
