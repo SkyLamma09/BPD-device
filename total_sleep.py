@@ -196,7 +196,7 @@ models = joblib.load(Path(__file__).resolve().parent / "model" / "random_forest_
 
 def predictions(acc, hrm, epochs):
     sadeh_preds = sadeh(epochs) # true sleep false awake
-    sadeh_predi = sadeh_preds[-1]  # Latest sleep/wake prediction
+    sadeh_predi = sadeh_preds[-1]
 
     hrm = np.asarray(hrm, dtype=float).flatten()
     acc = resample_poly(np.asarray(acc,dtype=float), up=1, down=2, axis=0)
