@@ -1,17 +1,8 @@
-#taking in stress score, total sleep in day, interdaily stability, intradaily variability, relative amplitude of circ rhythm
-# skin temperature deviation, patient mood report, duration of too high light exposure during sleeping time(11-7), maximum lux, variance
-
-
-
 import torch.nn as nn
 import torch.nn.functional as func
-
-
-from synthetic_data import synthetic_data
 import torch
 from synthetic_data import load_training_data
 from pathlib import Path
-
 
 class TCN(nn.Module):
     def __init__(self):
@@ -63,7 +54,6 @@ def trainer():
 
         loss.backward()
         optimizer.step()
-        print(f"Epoch {epoch + 1}, Loss: {loss.item():.4f}")
     model_path = Path(__file__).resolve().parent / "model" / "tcn.pth"
     model_path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(model.state_dict(), model_path)
