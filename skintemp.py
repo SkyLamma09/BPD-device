@@ -1,12 +1,9 @@
 import numpy as np
 
 baseline = None
-
 def skintemp(data):
     global baseline
-
     npdata = np.asarray(data, dtype=float).flatten()
-
     meantemp = np.mean(npdata)
     stdtemp = np.std(npdata)
     if baseline is None:
