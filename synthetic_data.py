@@ -12,7 +12,7 @@ def synthetic_data(n=2000, seed=42):
     y = np.zeros((n, 1), dtype=np.int64)
 
     for i in range(n):
-        #0 = depression, 1 = euthymia, 2 = mania
+        # 0 = depression, 1 = euthymia, 2 = mania
         label = rng.integers(0, 3)
         y[i, 0] = label
 
@@ -153,6 +153,7 @@ def synthetic_data(n=2000, seed=42):
 
 
 def save_training_data(X, y, append=False):
+    """Save examples, optionally appending to existing examples."""
     X = np.asarray(X, dtype=np.float32)
     y = np.asarray(y, dtype=np.int64).reshape(-1)
 
@@ -178,7 +179,6 @@ def save_training_data(X, y, append=False):
 
 
 def load_training_data():
-    """Load all saved examples for model training."""
     if not DATA_PATH.exists():
         raise FileNotFoundError(
             f"No training data found at {DATA_PATH}. "
@@ -213,6 +213,7 @@ if __name__ == "__main__":
 
 
 
+# Same label coding as synthetic_data() above: 0 = depression, 1 = euthymia, 2 = mania
 STATE_NAMES = ["depression", "euthymia", "mania"]
 
 
@@ -224,12 +225,9 @@ _STATE_PARAMS = {
 
 
 def _sleep_schedule(rng, p, n_days=7):
-    """Boolean array, one entry per minute, True while the person is asleep.
 
-    Built from one sleep period per night (random bedtime + length) plus a few
-    short awakenings, so every seed gives a different, realistic sleep pattern.
-    """
     asleep = np.zeros((n_days + 2) * 1440, dtype=bool)
+    # nights -1 .. n_days-1; the extra first day lets night -1 cover the early morning of day 0
     for night in range(-1, n_days):
         offset = (night + 1) * 1440
         bed = rng.normal(*p["bed"]) * 60
@@ -240,7 +238,7 @@ def _sleep_schedule(rng, p, n_days=7):
         for _ in range(rng.poisson(p["wakes"])):
             a = int(rng.integers(start, max(start + 1, end)))
             asleep[a:a + int(rng.integers(5, 25))] = False
-    return asleep[1440:1440 + n_days * 1440]
+    return asleep[1440:1440 + n_days * 1440]          # drop the helper day
 
 
 def make_week(seed=None):
@@ -252,12 +250,12 @@ def make_week(seed=None):
     make_week.info = {"seed": seed, "state": state, "state_name": STATE_NAMES[state]}
     print(f"Synthetic week: seed={seed}, generated state={STATE_NAMES[state]}")
 
-    t = np.arange(6000) / 100.0
+    t = np.arange(6000) / 100.0                       # 60 s sampled at 100 Hz
     week = []
 
     for day_num in range(7):
         mood = float(np.clip(np.round(rng.normal(p["mood"], 0.6)), -2, 2)) + 0.0
-        day_light = rng.lognormal(5.6, 0.5)
+        day_light = rng.lognormal(5.6, 0.5)           # how sunny the day is (peak lux)
         day_temp = rng.normal(0.0, 0.15)
         minutes = []
 
@@ -265,14 +263,15 @@ def make_week(seed=None):
             hour = minute / 60.0
             sleeping = bool(asleep[day_num * 1440 + minute])
             night = hour < 7 or hour >= 23
+
             if sleeping:
                 sigma = 0.004
-                if rng.random() < 0.03:
+                if rng.random() < 0.03:               # occasional turning over
                     sigma = 0.06
             else:
                 sigma = 0.05 + 0.25 * p["activity"] * rng.lognormal(-0.3, 0.6) * (0.4 if night else 1.0)
             acc = rng.normal(0, sigma, (6000, 3)).astype(np.float32)
-            acc[:, 2] += 1.0 
+            acc[:, 2] += 1.0                          # gravity
 
             bpm = (rng.normal(56, 3) if sleeping else rng.normal(75, 6)) + 6 * (state == 2) - 3 * (state == 0)
             bvp = (np.sin(2 * np.pi * (bpm / 60.0) * t) + rng.normal(0, 0.1, 6000)).astype(np.float32)
@@ -285,13 +284,13 @@ def make_week(seed=None):
 
             if sleeping:
                 lux = max(0.0, rng.normal(0.5, 0.5))
-                if rng.random() < p["night_light"] / 10:
+                if rng.random() < p["night_light"] / 10:      # a lamp / phone left on
                     lux = rng.uniform(15, 80)
             elif night:
                 lux = rng.uniform(20, 90) if rng.random() < 0.5 + p["night_light"] else 2.0
             else:
                 bell = np.exp(-((hour - 13) / 3.5) ** 2)
-                lux = (60 + day_light * bell) * rng.lognormal(0, 0.25)
+                lux = (60 + day_light * bell) * rng.lognormal(0, 0.25)   # clouds / indoors-outdoors
             light = np.maximum(0, lux * (1 + 0.15 * rng.normal(size=6)))
 
             minutes.append([acc, bvp, eda, temp, light])
