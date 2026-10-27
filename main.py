@@ -104,6 +104,8 @@ def finalpredict(seed=42):
 
     features1 = [stresss, fsleepweek, interdailys, intradailys, relamps, weekstdtemp, weekmood, weekhighlight, weekmalux, weeklightv, sin_time,cos_time]
     X_real = np.asarray(features1, dtype=np.float32)
+    X_real[8] = np.clip(X_real[8] / 8, 0, 160)
+    X_real[9] = np.clip(X_real[9] / 1000, 0, 36)
     X_real = torch.tensor(X_real, dtype=torch.float32).unsqueeze(0)
     model = TCN()
     model_path = Path(__file__).resolve().parent / "model" / "tcn.pth"
@@ -115,7 +117,7 @@ def finalpredict(seed=42):
     with torch.no_grad():
         prediction = model(X_real)
 
-    probabilities = torch.softmax(prediction / 4, dim=1)[0]
+    probabilities = torch.softmax(prediction, dim=1)[0]
     predicted_class = int(torch.argmax(probabilities).item())
 
     classes = ["mania", "euthymia", "depression"]
