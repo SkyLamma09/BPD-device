@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prodrome Dashboard</title>
+  <link rel="stylesheet" href="style1.css">
+</head>
+<body>
+<header class="header-bar">
+  <a href="index.html" class="brand">Homepage</a>
+</header>
+<section class="hero" id="home">
+  <h1>Prodrome</h1>
+  <p class="subtitle">A multimodal approach to detecting the onset of bipolar disorder episodes</p>
+
+  <div id="topResult" class="big-number">--%</div>
+  <div id="topLabel" class="big-label">Press the button to run the model</div>
+  <button id="runBtn" onclick="runPrediction()">Run with a synthetic week</button>
+
+  <div id="bars"></div>
+  <p id="risk" class="status"></p>
+</section>
+
+  <section id="trends">
+  <h2>Weekly Trends</h2>
+  <div id="insights" class="metrics"></div>
+</section>
+
+  <section id="selfreport">
+    <h2>Self Report</h2>
+    <form id="moodForm" onsubmit="submitMood(event)">
+      <p class="question">How are you feeling right now? *</p>
+      <label><input type="radio" name="mood" value="1" required> 1 – Low energy / sad</label>
+      <label><input type="radio" name="mood" value="2"> 2 – Somewhat low</label>
+      <label><input type="radio" name="mood" value="0"> 0 – Neutral</label>
+      <label><input type="radio" name="mood" value="3"> 3 – Somewhat high</label>
+      <label><input type="radio" name="mood" value="4"> 4 – High energy</label>
+      <button type="submit">Submit</button>
+    </form>
+    <p id="moodStatus"></p>
+    <ul id="moodList"></ul>
+  </section>
+
+  <section id="notes">
+    <h2>Patient Notes</h2>
+    <textarea placeholder="Enter a note..."></textarea>
+    <button onclick="saveNote()">Save Note</button>
+    <ul id="notesList"></ul>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
