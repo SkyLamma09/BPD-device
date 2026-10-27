@@ -1,77 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Prodrome Dashboard</title>
-  <link rel="stylesheet" href="style1.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Prodrome</title>
+    <link rel="stylesheet" href="style2.css">
 </head>
 <body>
-  <header class="header-bar">
-    <a href="#" class="logo"><img src="logo.png" alt="Logo"></a>
-    <nav>
-      <a href="#home">Home</a>
-      <a href="#trends">Trends</a>
-      <a href="#selfreport">Self Report</a>
-      <a href="#notes">Notes</a>
-    </nav>
-  </header>
+    <main>
+        <div class="title">
+            <img class="brain"
+                 src="C:\Users\yona\Pictures\Screenshots\brain.png"
+                 alt="Brain">
+            <h1>Prodrome</h1>
+        </div>
 
-  <section class="hero" id="home">
-    <h1>Prodrome</h1>
-    <p class="subtitle">A multimodal approach to detecting the onset of bipolar disorder episodes</p>
+        <p>Recognizing change. Regaining control.</p>
 
-    <div id="topResult" class="big-number">--%</div>
-    <div id="topLabel" class="big-label">Loading prediction...</div>
-
-    <div id="bars"></div>
-    <p id="risk" class="status"></p>
-    <p class="disclaimer">Model confidence based on the past week of data. Not a medical diagnosis.</p>
-  </section>
-
-  <section id="trends">
-    <h2>Weekly Trends</h2>
-
-    <div class="metrics">
-      <div><small>Interdaily stability</small><strong id="statInter">--</strong></div>
-      <div><small>Intradaily variability</small><strong id="statIntra">--</strong></div>
-      <div><small>Relative amplitude</small><strong id="statAmp">--</strong></div>
-    </div>
-
-    <div class="chart-grid">
-      <div class="chart-card"><h3>Sleep</h3><canvas id="sleepChart"></canvas></div>
-      <div class="chart-card"><h3>Skin Temperature Deviation</h3><canvas id="temperatureChart"></canvas></div>
-      <div class="chart-card"><h3>Ambient Light (lux)</h3><canvas id="lightChart"></canvas></div>
-      <div class="chart-card"><h3>Stress Estimate</h3><canvas id="stressChart"></canvas></div>
-      <div class="chart-card"><h3>Night Light Exposure</h3><canvas id="lightExposureChart"></canvas></div>
-      <div class="chart-card"><h3>Light Variability</h3><canvas id="lightVarChart"></canvas></div>
-      <div class="chart-card"><h3>Mood Rating</h3><canvas id="moodChart"></canvas></div>
-    </div>
-  </section>
-
-  <section id="selfreport">
-    <h2>Self Report</h2>
-    <form id="moodForm" onsubmit="submitMood(event)">
-      <p class="question">How are you feeling right now? *</p>
-      <label><input type="radio" name="mood" value="1" required> 1 – Low energy / sad</label>
-      <label><input type="radio" name="mood" value="2"> 2 – Somewhat low</label>
-      <label><input type="radio" name="mood" value="0"> 0 – Neutral</label>
-      <label><input type="radio" name="mood" value="3"> 3 – Somewhat high</label>
-      <label><input type="radio" name="mood" value="4"> 4 – High energy</label>
-      <button type="submit">Submit</button>
-    </form>
-    <p id="moodStatus"></p>
-    <ul id="moodList"></ul>
-  </section>
-
-  <section id="notes">
-    <h2>Patient Notes</h2>
-    <textarea placeholder="Enter a note..."></textarea>
-    <button onclick="saveNote()">Save Note</button>
-    <ul id="notesList"></ul>
-  </section>
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="app.js"></script>
+        <a class="button" href="index2.html">Health dashboard</a>
+    </main>
 </body>
 </html>
