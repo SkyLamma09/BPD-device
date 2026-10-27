@@ -26,7 +26,9 @@ python api.py
 ```
 
 Then open `website/index.html` and press **Run with a synthetic week**. The first run can take several minutes.
-
+## AI usage
+- The synthetic data algorithm was written with GPT because we could not find public open source bipolar disorder datasets 
+- GPT helped debug the GUI.
 ## Roadmap
 
 - Use real wearable data
